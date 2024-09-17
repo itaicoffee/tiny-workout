@@ -158,12 +158,25 @@
             font-size: 24px;
             cursor: pointer;
         }
+
+        .workout-type {
+            margin-bottom: 1rem;
+        }
+
+        #exerciseDisplay {
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 <body>
     <button class="dark-mode-toggle" id="darkModeToggle">🌓</button>
     <div class="container">
         <h1>Workout Timer</h1>
+        <div class="workout-type">
+            <label><input type="radio" name="workoutType" value="timed" checked> Timed Workout</label>
+            <label><input type="radio" name="workoutType" value="kettlebell"> Kettlebell Workout</label>
+        </div>
         <div class="progress-container">
             <div class="progress-label">
                 <span>Interval</span>
@@ -179,17 +192,20 @@
             <div id="totalProgressBar"><div id="totalProgressFill"></div></div>
         </div>
         <p id="status">Ready</p>
-        <div class="input-group">
-            <label for="workInterval">Work (seconds):</label>
-            <input type="number" id="workInterval" value="60" min="1">
-        </div>
-        <div class="input-group">
-            <label for="restInterval">Rest (seconds):</label>
-            <input type="number" id="restInterval" value="30" min="1">
-        </div>
-        <div class="input-group">
-            <label for="totalDuration">Total (minutes):</label>
-            <input type="number" id="totalDuration" value="15" min="1">
+        <div id="exerciseDisplay" style="display: none;"></div>
+        <div id="timedInputs">
+            <div class="input-group">
+                <label for="workInterval">Work (seconds):</label>
+                <input type="number" id="workInterval" value="60" min="1">
+            </div>
+            <div class="input-group">
+                <label for="restInterval">Rest (seconds):</label>
+                <input type="number" id="restInterval" value="30" min="1">
+            </div>
+            <div class="input-group">
+                <label for="totalDuration">Total (minutes):</label>
+                <input type="number" id="totalDuration" value="15" min="1">
+            </div>
         </div>
         <button id="startButton">Start</button>
         <button id="pauseButton" disabled>Pause</button>
@@ -209,6 +225,9 @@
         const totalDurationInput = document.getElementById('totalDuration');
         const darkModeToggle = document.getElementById('darkModeToggle');
         const body = document.body;
+        const workoutTypeInputs = document.querySelectorAll('input[name="workoutType"]');
+        const timedInputs = document.getElementById('timedInputs');
+        const exerciseDisplay = document.getElementById('exerciseDisplay');
 
         // Workout variables
         let timer;
@@ -218,10 +237,23 @@
         let elapsedTime;
         let isPaused = false;
         let pauseStartTime;
+        let isKettlebellWorkout = false;
+        let currentExerciseIndex = 0; // Initialize to 0 instead of -1
 
         let WORK_INTERVAL = 60;
         let REST_INTERVAL = 30;
         let TOTAL_DURATION = 15 * 60; // 15 minutes in seconds
+
+        const kettlebellExercises = [
+            "Tricep Overhead Extension",
+            "One-Arm Side Kettlebell Swing",
+            "Russian Kettlebell Swing",
+            "American Kettlebell Swing",
+            "Kettlebell Windshield Wipers (Ab Work)",
+            "Goblet Squat",
+            "Kettlebell Deadlift",
+            "Kettlebell Plank Pull-through"
+        ];
 
         // Audio
         const intervalSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3');
@@ -245,13 +277,37 @@
             sound.play().catch(error => console.log("Playback prevented: ", error));
         }
 
+        function updateExerciseDisplay() {
+            if (isKettlebellWorkout) {
+                const exerciseText = isWorkInterval 
+                    ? kettlebellExercises[currentExerciseIndex]
+                    : `Next: ${kettlebellExercises[(currentExerciseIndex + 1) % kettlebellExercises.length]}`;
+                exerciseDisplay.textContent = exerciseText;
+                exerciseDisplay.style.display = 'block';
+            } else {
+                exerciseDisplay.style.display = 'none';
+            }
+        }
+
         // Main functions
         function startWorkout() {
-            updateIntervals();
+            isKettlebellWorkout = document.querySelector('input[name="workoutType"]:checked').value === 'kettlebell';
+            
+            if (isKettlebellWorkout) {
+                WORK_INTERVAL = 20;
+                REST_INTERVAL = 10;
+                TOTAL_DURATION = kettlebellExercises.length * (WORK_INTERVAL + REST_INTERVAL);
+                timedInputs.style.display = 'none';
+            } else {
+                updateIntervals();
+                timedInputs.style.display = 'block';
+            }
+
             startTime = Date.now();
             nextIntervalTime = startTime + WORK_INTERVAL * 1000;
             isWorkInterval = true;
             elapsedTime = 0;
+            currentExerciseIndex = 0; // Reset to 0 when starting the workout
 
             startButton.disabled = true;
             pauseButton.disabled = false;
@@ -262,6 +318,7 @@
 
             playSound(intervalSound);
             timer = setInterval(updateUI, 100);
+            updateExerciseDisplay();
         }
 
         function resetWorkout() {
@@ -278,13 +335,13 @@
             workIntervalInput.disabled = false;
             restIntervalInput.disabled = false;
             totalDurationInput.disabled = false;
+            exerciseDisplay.textContent = '';
         }
 
         function updateUI() {
             if (isPaused) return;
             const currentTime = Date.now();
             elapsedTime = Math.floor((currentTime - startTime) / 1000);
-            const remainingTime = TOTAL_DURATION - elapsedTime;
 
             if (elapsedTime >= TOTAL_DURATION) {
                 clearInterval(timer);
@@ -302,6 +359,11 @@
                 isWorkInterval = !isWorkInterval;
                 nextIntervalTime = currentTime + (isWorkInterval ? WORK_INTERVAL : REST_INTERVAL) * 1000;
                 playSound(intervalSound);
+
+                if (isKettlebellWorkout && !isWorkInterval) {
+                    currentExerciseIndex = (currentExerciseIndex + 1) % kettlebellExercises.length;
+                }
+                updateExerciseDisplay();
             }
 
             status.textContent = intervalStatus;
@@ -342,6 +404,13 @@
         darkModeToggle.addEventListener('click', () => {
             body.classList.toggle('dark-mode');
             localStorage.setItem('darkMode', body.classList.contains('dark-mode'));
+        });
+
+        workoutTypeInputs.forEach(input => {
+            input.addEventListener('change', () => {
+                isKettlebellWorkout = input.value === 'kettlebell';
+                timedInputs.style.display = isKettlebellWorkout ? 'none' : 'block';
+            });
         });
 
         // Initialize dark mode
