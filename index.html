@@ -353,6 +353,9 @@
                 return;
             }
 
+            // Update total time display for both workout types
+            totalTime.textContent = `${formatTime(elapsedTime)} / ${formatTime(TOTAL_DURATION)}`;
+
             if (isKettlebellWorkout) {
                 const singleCycleDuration = kettlebellExercises.length * (WORK_INTERVAL + REST_INTERVAL);
                 const currentCycleTime = elapsedTime % (singleCycleDuration + CYCLE_BREAK);
@@ -411,7 +414,6 @@
                 }
 
                 status.textContent = intervalStatus;
-                totalTime.textContent = `${formatTime(elapsedTime)} / ${formatTime(TOTAL_DURATION)}`;
                 intervalTime.textContent = `${intervalElapsed.toString().padStart(2, '0')}/${currentInterval}s`;
 
                 const intervalProgress = (intervalElapsed / currentInterval) * 100;
