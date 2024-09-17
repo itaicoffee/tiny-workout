@@ -296,7 +296,8 @@
             if (isKettlebellWorkout) {
                 WORK_INTERVAL = 20;
                 REST_INTERVAL = 10;
-                TOTAL_DURATION = kettlebellExercises.length * (WORK_INTERVAL + REST_INTERVAL);
+                const singleCycleDuration = kettlebellExercises.length * (WORK_INTERVAL + REST_INTERVAL);
+                TOTAL_DURATION = (singleCycleDuration * TOTAL_CYCLES) + (CYCLE_BREAK * (TOTAL_CYCLES - 1));
                 timedInputs.style.display = 'none';
             } else {
                 updateIntervals();
@@ -336,6 +337,7 @@
             restIntervalInput.disabled = false;
             totalDurationInput.disabled = false;
             exerciseDisplay.textContent = '';
+            cyclesCompleted = 0;
         }
 
         function updateUI() {
@@ -351,28 +353,71 @@
                 return;
             }
 
-            const intervalStatus = isWorkInterval ? "Work" : "Rest";
-            const currentInterval = isWorkInterval ? WORK_INTERVAL : REST_INTERVAL;
-            const intervalElapsed = currentInterval - Math.floor((nextIntervalTime - currentTime) / 1000);
+            if (isKettlebellWorkout) {
+                const singleCycleDuration = kettlebellExercises.length * (WORK_INTERVAL + REST_INTERVAL);
+                const currentCycleTime = elapsedTime % (singleCycleDuration + CYCLE_BREAK);
 
-            if (currentTime >= nextIntervalTime) {
-                isWorkInterval = !isWorkInterval;
-                nextIntervalTime = currentTime + (isWorkInterval ? WORK_INTERVAL : REST_INTERVAL) * 1000;
-                playSound(intervalSound);
+                if (currentCycleTime < singleCycleDuration) {
+                    // Normal exercise/rest interval
+                    const intervalStatus = isWorkInterval ? "Work" : "Rest";
+                    const currentInterval = isWorkInterval ? WORK_INTERVAL : REST_INTERVAL;
+                    const intervalElapsed = currentInterval - Math.floor((nextIntervalTime - currentTime) / 1000);
 
-                if (isKettlebellWorkout && !isWorkInterval) {
-                    currentExerciseIndex = (currentExerciseIndex + 1) % kettlebellExercises.length;
+                    if (currentTime >= nextIntervalTime) {
+                        isWorkInterval = !isWorkInterval;
+                        nextIntervalTime = currentTime + (isWorkInterval ? WORK_INTERVAL : REST_INTERVAL) * 1000;
+                        playSound(intervalSound);
+
+                        if (!isWorkInterval) {
+                            currentExerciseIndex = (currentExerciseIndex + 1) % kettlebellExercises.length;
+                        }
+                        updateExerciseDisplay();
+                    }
+
+                    status.textContent = intervalStatus;
+                    intervalTime.textContent = `${intervalElapsed.toString().padStart(2, '0')}/${currentInterval}s`;
+                    const intervalProgress = (intervalElapsed / currentInterval) * 100;
+                    progressFill.style.width = `${intervalProgress}%`;
+                    progressFill.style.backgroundColor = isWorkInterval ? 'var(--progress-work)' : 'var(--progress-rest)';
+                } else {
+                    // Cycle break
+                    const breakElapsed = currentCycleTime - singleCycleDuration;
+                    status.textContent = "Cycle Break";
+                    intervalTime.textContent = `${breakElapsed.toString().padStart(2, '0')}/${CYCLE_BREAK}s`;
+                    const breakProgress = (breakElapsed / CYCLE_BREAK) * 100;
+                    progressFill.style.width = `${breakProgress}%`;
+                    progressFill.style.backgroundColor = 'var(--progress-total)';
+
+                    if (breakElapsed >= CYCLE_BREAK) {
+                        cyclesCompleted++;
+                        if (cyclesCompleted < TOTAL_CYCLES) {
+                            currentExerciseIndex = 0;
+                            isWorkInterval = true;
+                            nextIntervalTime = currentTime + WORK_INTERVAL * 1000;
+                            updateExerciseDisplay();
+                        }
+                    }
                 }
-                updateExerciseDisplay();
+            } else {
+                // Existing timed workout logic
+                const intervalStatus = isWorkInterval ? "Work" : "Rest";
+                const currentInterval = isWorkInterval ? WORK_INTERVAL : REST_INTERVAL;
+                const intervalElapsed = currentInterval - Math.floor((nextIntervalTime - currentTime) / 1000);
+
+                if (currentTime >= nextIntervalTime) {
+                    isWorkInterval = !isWorkInterval;
+                    nextIntervalTime = currentTime + (isWorkInterval ? WORK_INTERVAL : REST_INTERVAL) * 1000;
+                    playSound(intervalSound);
+                }
+
+                status.textContent = intervalStatus;
+                totalTime.textContent = `${formatTime(elapsedTime)} / ${formatTime(TOTAL_DURATION)}`;
+                intervalTime.textContent = `${intervalElapsed.toString().padStart(2, '0')}/${currentInterval}s`;
+
+                const intervalProgress = (intervalElapsed / currentInterval) * 100;
+                progressFill.style.width = `${intervalProgress}%`;
+                progressFill.style.backgroundColor = isWorkInterval ? 'var(--progress-work)' : 'var(--progress-rest)';
             }
-
-            status.textContent = intervalStatus;
-            totalTime.textContent = `${formatTime(elapsedTime)} / ${formatTime(TOTAL_DURATION)}`;
-            intervalTime.textContent = `${intervalElapsed.toString().padStart(2, '0')}/${currentInterval}s`;
-
-            const intervalProgress = (intervalElapsed / currentInterval) * 100;
-            progressFill.style.width = `${intervalProgress}%`;
-            progressFill.style.backgroundColor = isWorkInterval ? 'var(--progress-work)' : 'var(--progress-rest)';
 
             const totalProgress = (elapsedTime / TOTAL_DURATION) * 100;
             totalProgressFill.style.width = `${totalProgress}%`;
@@ -417,6 +462,11 @@
         if (localStorage.getItem('darkMode') === 'true') {
             body.classList.add('dark-mode');
         }
+
+        // Modify these variables
+        let cyclesCompleted = 0;
+        const TOTAL_CYCLES = 3;
+        const CYCLE_BREAK = 60; // 60 seconds break between cycles
     </script>
 </body>
 </html>
