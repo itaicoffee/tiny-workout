@@ -16,6 +16,14 @@
             --input-text: #333;
             --input-disabled-bg: #e9e9e9;
             --input-disabled-text: #666;
+            --button-bg: #4CAF50;
+            --button-hover-bg: #45a049;
+            --button-disabled-bg: #cccccc;
+            --button-disabled-text: #666666;
+            --progress-bg: #e0e0e0;
+            --progress-work: #4CAF50;
+            --progress-rest: #FFA500;
+            --progress-total: #2196F3;
         }
 
         .dark-mode {
@@ -28,6 +36,11 @@
             --input-text: #f0f0f0;
             --input-disabled-bg: #333;
             --input-disabled-text: #888;
+            --button-bg: #4CAF50;
+            --button-hover-bg: #45a049;
+            --button-disabled-bg: #555555;
+            --button-disabled-text: #888888;
+            --progress-bg: #444;
         }
 
         body {
@@ -41,6 +54,7 @@
             color: var(--text-color);
             transition: background-color 0.3s ease, color 0.3s ease;
         }
+
         .container {
             text-align: center;
             background-color: var(--container-bg);
@@ -48,35 +62,42 @@
             border-radius: 10px;
             box-shadow: 0 0 10px var(--container-shadow);
         }
+
         .progress-container {
             margin-bottom: 1rem;
         }
+
         .progress-label {
             display: flex;
             justify-content: space-between;
             margin-bottom: 0.25rem;
         }
+
         #progressBar, #totalProgressBar {
             width: 100%;
             height: 20px;
-            background-color: #e0e0e0;
+            background-color: var(--progress-bg);
             border-radius: 10px;
             overflow: hidden;
         }
+
         #progressFill, #totalProgressFill {
             height: 100%;
             width: 0;
             transition: width 0.1s ease-in-out;
         }
+
         #progressFill {
-            background-color: #4CAF50;
+            background-color: var(--progress-work);
         }
+
         #totalProgressFill {
-            background-color: #2196F3;
+            background-color: var(--progress-total);
         }
+
         button {
             font-family: 'Rubik', Arial, sans-serif;
-            background-color: #4CAF50;
+            background-color: var(--button-bg);
             border: none;
             color: white;
             padding: 15px 32px;
@@ -90,24 +111,28 @@
             border-radius: 5px;
             transition: background-color 0.3s ease;
         }
+
         button:hover {
-            background-color: #45a049;
+            background-color: var(--button-hover-bg);
         }
+
         button:disabled {
-            background-color: #cccccc;
-            color: #666666;
+            background-color: var(--button-disabled-bg);
+            color: var(--button-disabled-text);
             cursor: not-allowed;
         }
-        
+
         .input-group {
             margin-bottom: 10px;
         }
+
         .input-group label {
             display: inline-block;
             width: 200px;
             text-align: right;
             margin-right: 10px;
         }
+
         .input-group input {
             width: 60px;
             padding: 5px;
@@ -116,12 +141,13 @@
             background-color: var(--input-bg);
             color: var(--input-text);
         }
+
         .input-group input:disabled {
             background-color: var(--input-disabled-bg);
             color: var(--input-disabled-text);
             cursor: not-allowed;
         }
-        
+
         .dark-mode-toggle {
             position: absolute;
             top: 10px;
@@ -170,6 +196,7 @@
     </div>
 
     <script>
+        // DOM elements
         const startButton = document.getElementById('startButton');
         const pauseButton = document.getElementById('pauseButton');
         const status = document.getElementById('status');
@@ -177,7 +204,13 @@
         const intervalTime = document.getElementById('intervalTime');
         const progressFill = document.getElementById('progressFill');
         const totalProgressFill = document.getElementById('totalProgressFill');
+        const workIntervalInput = document.getElementById('workInterval');
+        const restIntervalInput = document.getElementById('restInterval');
+        const totalDurationInput = document.getElementById('totalDuration');
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const body = document.body;
 
+        // Workout variables
         let timer;
         let startTime;
         let nextIntervalTime;
@@ -186,21 +219,17 @@
         let isPaused = false;
         let pauseStartTime;
 
-        const workIntervalInput = document.getElementById('workInterval');
-        const restIntervalInput = document.getElementById('restInterval');
-        const totalDurationInput = document.getElementById('totalDuration');
-
         let WORK_INTERVAL = 60;
         let REST_INTERVAL = 30;
         let TOTAL_DURATION = 15 * 60; // 15 minutes in seconds
 
+        // Audio
         const intervalSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3');
         const endSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3');
-
-        // Preload the audio files
         intervalSound.load();
         endSound.load();
 
+        // Helper functions
         function formatTime(seconds) {
             return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
         }
@@ -211,6 +240,12 @@
             TOTAL_DURATION = (parseInt(totalDurationInput.value) || 15) * 60;
         }
 
+        function playSound(sound) {
+            sound.currentTime = 0;
+            sound.play().catch(error => console.log("Playback prevented: ", error));
+        }
+
+        // Main functions
         function startWorkout() {
             updateIntervals();
             startTime = Date.now();
@@ -225,7 +260,7 @@
             restIntervalInput.disabled = true;
             totalDurationInput.disabled = true;
 
-            playSound(intervalSound); // Play interval sound at the start of the workout
+            playSound(intervalSound);
             timer = setInterval(updateUI, 100);
         }
 
@@ -266,7 +301,7 @@
             if (currentTime >= nextIntervalTime) {
                 isWorkInterval = !isWorkInterval;
                 nextIntervalTime = currentTime + (isWorkInterval ? WORK_INTERVAL : REST_INTERVAL) * 1000;
-                playIntervalSound();
+                playSound(intervalSound);
             }
 
             status.textContent = intervalStatus;
@@ -275,7 +310,7 @@
 
             const intervalProgress = (intervalElapsed / currentInterval) * 100;
             progressFill.style.width = `${intervalProgress}%`;
-            progressFill.style.backgroundColor = isWorkInterval ? '#4CAF50' : '#FFA500';
+            progressFill.style.backgroundColor = isWorkInterval ? 'var(--progress-work)' : 'var(--progress-rest)';
 
             const totalProgress = (elapsedTime / TOTAL_DURATION) * 100;
             totalProgressFill.style.width = `${totalProgress}%`;
@@ -283,7 +318,6 @@
 
         function togglePause() {
             if (isPaused) {
-                // Resume
                 isPaused = false;
                 const pauseDuration = Date.now() - pauseStartTime;
                 startTime += pauseDuration;
@@ -291,7 +325,6 @@
                 timer = setInterval(updateUI, 100);
                 pauseButton.textContent = "Pause";
             } else {
-                // Pause
                 isPaused = true;
                 pauseStartTime = Date.now();
                 clearInterval(timer);
@@ -299,39 +332,19 @@
             }
         }
 
-        function playSound(sound) {
-            sound.currentTime = 0;
-            let playPromise = sound.play();
-            
-            if (playPromise !== undefined) {
-                playPromise.then(_ => {
-                    // Playback started successfully
-                }).catch(error => {
-                    console.log("Playback prevented: ", error);
-                });
-            }
-        }
-
-        function playIntervalSound() {
-            playSound(intervalSound);
-        }
-
+        // Event listeners
         startButton.addEventListener('click', startWorkout);
         pauseButton.addEventListener('click', togglePause);
         workIntervalInput.addEventListener('change', updateIntervals);
         restIntervalInput.addEventListener('change', updateIntervals);
         totalDurationInput.addEventListener('change', updateIntervals);
 
-        // Add this new code for dark mode toggle
-        const darkModeToggle = document.getElementById('darkModeToggle');
-        const body = document.body;
-
         darkModeToggle.addEventListener('click', () => {
             body.classList.toggle('dark-mode');
             localStorage.setItem('darkMode', body.classList.contains('dark-mode'));
         });
 
-        // Check for saved dark mode preference
+        // Initialize dark mode
         if (localStorage.getItem('darkMode') === 'true') {
             body.classList.add('dark-mode');
         }
